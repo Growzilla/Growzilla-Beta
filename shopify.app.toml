@@ -1,0 +1,39 @@
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "02e4e67112ab0bf60bbd4de3afbff59e"
+name = "GrowzillaBeta"
+# TODO: Replace with your actual Render URL after deployment
+application_url = "https://growzilla-app.onrender.com"
+embedded = true
+
+[build]
+# IMPORTANT: Set to false for production to prevent dev from overwriting URLs
+automatically_update_urls_on_dev = false
+include_config_on_deploy = true
+
+[webhooks]
+api_version = "2026-04"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "inventory_levels/update" ]
+  uri = "/webhooks/inventory/update"
+
+  [[webhooks.subscriptions]]
+  topics = [ "products/update" ]
+  uri = "/webhooks/products/update"
+
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_products,read_orders,read_customers,read_inventory,read_discounts,read_analytics"
+
+[auth]
+# TODO: Replace with your actual Render URL after deployment
+redirect_urls = [ "https://growzilla-app.onrender.com/auth/callback" ]

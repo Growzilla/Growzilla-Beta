@@ -1,0 +1,27 @@
+# Render Blueprint - Infrastructure as Code
+# Deploy with: Connect repo to Render, it auto-detects this file
+
+services:
+  - type: web
+    name: growzilla-app
+    runtime: node
+    region: oregon
+    plan: starter  # $7/month, upgrade to standard for production
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SHOPIFY_API_KEY
+        sync: false  # Set manually in dashboard (sensitive)
+      - key: SHOPIFY_API_SECRET
+        sync: false  # Set manually in dashboard (sensitive)
+      - key: BACKEND_API_URL
+        value: https://ecomdash-api.onrender.com
+      - key: SHOPIFY_APP_URL
+        fromService:
+          type: web
+          name: growzilla-app
+          property: host
+    autoDeploy: true  # Auto-deploy on push to main
