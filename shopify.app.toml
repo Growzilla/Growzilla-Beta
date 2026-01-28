@@ -2,8 +2,7 @@
 
 client_id = "02e4e67112ab0bf60bbd4de3afbff59e"
 name = "GrowzillaBeta"
-# TODO: Replace with your actual Render URL after deployment
-application_url = "https://growzilla-app.onrender.com"
+application_url = "https://growzilla-beta.onrender.com"
 embedded = true
 
 [build]
@@ -35,5 +34,4 @@ api_version = "2026-04"
 scopes = "read_products,read_orders,read_customers,read_inventory,read_discounts,read_analytics"
 
 [auth]
-# TODO: Replace with your actual Render URL after deployment
-redirect_urls = [ "https://growzilla-app.onrender.com/auth/callback" ]
+redirect_urls = [ "https://growzilla-beta.onrender.com/auth/callback" ]
