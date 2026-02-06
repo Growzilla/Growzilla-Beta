@@ -11,7 +11,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   console.log(`Received ${topic} webhook for ${shop}`);
 
   try {
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8000";
+    const backendUrl = process.env.BACKEND_API_URL || "https://ecomdash-api.onrender.com";
     await fetch(`${backendUrl}/webhooks/inventory/update`, {
       method: "POST",
       headers: {

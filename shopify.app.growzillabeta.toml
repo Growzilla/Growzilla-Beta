@@ -1,21 +1,26 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+# NOTE: This file is auto-managed by Shopify CLI (shopify app dev).
+# The canonical production config is shopify.app.toml.
+# This file uses the dev app client_id for local development.
 
 client_id = "a634575d92b7ea9793c8d1c852ce3265"
 name = "GrowzillaBeta"
-application_url = "https://example.com"
+application_url = "https://growzilla-beta.onrender.com"
 embedded = true
 
 [webhooks]
-api_version = "2026-01"
+api_version = "2026-04"
 
 [access_scopes]
-# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
-scopes = "read_analytics,read_customers,read_discounts,read_inventory,read_orders,read_products"
+# MVP scopes - minimal for fast public app approval
+# Phase 2: add read_customers
+# Phase 3: add read_analytics, read_discounts
+scopes = "read_products,read_orders"
 optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ ]
+redirect_urls = [ "https://growzilla-beta.onrender.com/auth/callback" ]
 
 [build]
 automatically_update_urls_on_dev = true

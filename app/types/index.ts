@@ -1,12 +1,14 @@
 export interface DashboardStats {
-  totalRevenue: number;
-  totalOrders: number;
-  averageOrderValue: number;
-  conversionRate: number;
-  revenueChange: number;
-  ordersChange: number;
-  aovChange: number;
-  conversionChange: number;
+  // Backend field names (camelCase from FastAPI aliases)
+  yesterdayRevenue: number;
+  weekAvgRevenue: number;
+  yesterdayOrders: number;
+  weekAvgOrders: number;
+  yesterdayAov: number;
+  weekAvgAov: number;
+  revenueDelta: number;
+  ordersDelta: number;
+  aovDelta: number;
 }
 
 export interface ChartDataPoint {

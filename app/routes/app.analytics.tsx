@@ -118,20 +118,20 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     if (statsResult.status === "fulfilled") {
       const stats = statsResult.value;
-      // Use nullish coalescing to preserve mock defaults for any missing backend fields
-      const aov = stats.averageOrderValue ?? data.metrics.aov;
-      const aovChange = stats.aovChange ?? data.metrics.aovChange;
+      // Map backend field names to analytics metrics
+      const aov = stats.yesterdayAov ?? data.metrics.aov;
+      const aovChange = stats.aovDelta ?? data.metrics.aovChange;
       data.metrics = {
-        totalRevenue: stats.totalRevenue ?? data.metrics.totalRevenue,
-        revenueChange: stats.revenueChange ?? data.metrics.revenueChange,
-        totalOrders: stats.totalOrders ?? data.metrics.totalOrders,
-        ordersChange: stats.ordersChange ?? data.metrics.ordersChange,
+        totalRevenue: stats.yesterdayRevenue ?? data.metrics.totalRevenue,
+        revenueChange: stats.revenueDelta ?? data.metrics.revenueChange,
+        totalOrders: stats.yesterdayOrders ?? data.metrics.totalOrders,
+        ordersChange: stats.ordersDelta ?? data.metrics.ordersChange,
         aov,
         aovChange,
         ltv: aov * 2.2, // Estimated LTV
         ltvChange: aovChange * 1.5,
-        conversionRate: stats.conversionRate ?? data.metrics.conversionRate,
-        conversionChange: stats.conversionChange ?? data.metrics.conversionChange,
+        conversionRate: data.metrics.conversionRate, // Not available from backend yet
+        conversionChange: data.metrics.conversionChange,
         repeatCustomerRate: 24.5, // Mock - requires additional API
         repeatChange: 3.2,
       };

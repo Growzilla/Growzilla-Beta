@@ -12,7 +12,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   // Forward to backend for processing
   try {
-    const backendUrl = process.env.BACKEND_API_URL || "http://localhost:8000";
+    const backendUrl = process.env.BACKEND_API_URL || "https://ecomdash-api.onrender.com";
     await fetch(`${backendUrl}/webhooks/orders/create`, {
       method: "POST",
       headers: {

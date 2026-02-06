@@ -19,14 +19,15 @@ interface LoaderData {
 
 // Mock data fallback when backend unavailable
 const MOCK_STATS: DashboardStats = {
-  totalRevenue: 24580.50,
-  revenueChange: 12.4,
-  totalOrders: 156,
-  ordersChange: 8.2,
-  averageOrderValue: 157.57,
-  aovChange: 3.8,
-  conversionRate: 3.9,
-  conversionChange: 0.6,
+  yesterdayRevenue: 1247.50,
+  weekAvgRevenue: 1112.30,
+  yesterdayOrders: 8,
+  weekAvgOrders: 7,
+  yesterdayAov: 155.94,
+  weekAvgAov: 158.90,
+  revenueDelta: 12.1,
+  ordersDelta: 14.3,
+  aovDelta: -1.9,
 };
 
 // Use static dates to prevent hydration mismatch (Date.now() differs server vs client)
@@ -121,7 +122,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     data.usingMockData = true;
   }
 
-  // Apply mock data fallback if backend data unavailable
+  // Apply mock data fallback only if backend was truly unreachable
   if (!data.stats) {
     data.stats = MOCK_STATS;
     data.usingMockData = true;
@@ -132,7 +133,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
   if (data.insights.length === 0) {
     data.insights = MOCK_INSIGHTS;
-    data.usingMockData = true;
+    // Don't flag as mock just because insights are empty -
+    // a new store with no synced data legitimately has 0 insights
   }
 
   return data;
@@ -201,30 +203,29 @@ export default function Dashboard() {
         <Layout.Section>
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
             <StatsCard
-              title="Total Revenue"
-              value={stats?.totalRevenue ?? 0}
+              title="Yesterday Revenue"
+              value={stats?.yesterdayRevenue ?? 0}
               prefix="$"
-              comparison={stats?.revenueChange ?? 0}
+              comparison={stats?.revenueDelta ?? 0}
               loading={statsLoading}
             />
             <StatsCard
-              title="Orders"
-              value={stats?.totalOrders ?? 0}
-              comparison={stats?.ordersChange ?? 0}
+              title="Yesterday Orders"
+              value={stats?.yesterdayOrders ?? 0}
+              comparison={stats?.ordersDelta ?? 0}
               loading={statsLoading}
             />
             <StatsCard
               title="Avg Order Value"
-              value={stats?.averageOrderValue ?? 0}
+              value={stats?.yesterdayAov ?? 0}
               prefix="$"
-              comparison={stats?.aovChange ?? 0}
+              comparison={stats?.aovDelta ?? 0}
               loading={statsLoading}
             />
             <StatsCard
-              title="Conversion Rate"
-              value={stats?.conversionRate ?? 0}
-              suffix="%"
-              comparison={stats?.conversionChange ?? 0}
+              title="7-Day Avg Revenue"
+              value={stats?.weekAvgRevenue ?? 0}
+              prefix="$"
               loading={statsLoading}
             />
           </InlineGrid>
