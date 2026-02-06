@@ -1,6 +1,6 @@
 # Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
 
-client_id = "02e4e67112ab0bf60bbd4de3afbff59e"
+client_id = "a634575d92b7ea9793c8d1c852ce3265"
 name = "GrowzillaBeta"
 application_url = "https://growzilla-beta.onrender.com"
 embedded = true
