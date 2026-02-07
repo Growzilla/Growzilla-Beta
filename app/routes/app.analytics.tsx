@@ -34,58 +34,26 @@ interface AnalyticsData {
   error?: string;
 }
 
-// Static mock data to prevent hydration mismatch
-// Using fixed dates and deterministic values (no Math.random() or new Date())
-const STATIC_REVENUE_BY_DAY = [
-  { date: "2025-01-14", revenue: 2850, orders: 18 },
-  { date: "2025-01-15", revenue: 3420, orders: 22 },
-  { date: "2025-01-16", revenue: 2980, orders: 19 },
-  { date: "2025-01-17", revenue: 4150, orders: 26 },
-  { date: "2025-01-18", revenue: 3680, orders: 23 },
-  { date: "2025-01-19", revenue: 3890, orders: 25 },
-  { date: "2025-01-20", revenue: 3610, orders: 23 },
-  { date: "2025-01-21", revenue: 3200, orders: 20 },
-  { date: "2025-01-22", revenue: 3950, orders: 24 },
-  { date: "2025-01-23", revenue: 4280, orders: 27 },
-  { date: "2025-01-24", revenue: 3750, orders: 24 },
-  { date: "2025-01-25", revenue: 4100, orders: 26 },
-  { date: "2025-01-26", revenue: 3520, orders: 22 },
-  { date: "2025-01-27", revenue: 3880, orders: 25 },
-];
-
-// Mock data when backend unavailable
-const generateMockData = (period: string): AnalyticsData => {
-  const days = period === "7d" ? 7 : period === "30d" ? 30 : 90;
-
-  // Use static data sliced to match period (prevents hydration mismatch)
-  const revenueByDay = STATIC_REVENUE_BY_DAY.slice(0, Math.min(days, 14));
-
-  return {
-    period,
-    metrics: {
-      totalRevenue: revenueByDay.reduce((sum, d) => sum + d.revenue, 0),
-      revenueChange: 12.5,
-      totalOrders: revenueByDay.reduce((sum, d) => sum + d.orders, 0),
-      ordersChange: 8.3,
-      aov: 156.78,
-      aovChange: 4.2,
-      ltv: 342.50,
-      ltvChange: 6.8,
-      conversionRate: 3.8,
-      conversionChange: 0.5,
-      repeatCustomerRate: 24.5,
-      repeatChange: 3.2,
-    },
-    revenueByDay,
-    topPerformers: [
-      { name: "Premium Widget Pro", revenue: 4520, orders: 28, growth: 15.2 },
-      { name: "Essential Starter Kit", revenue: 3280, orders: 41, growth: 8.7 },
-      { name: "Deluxe Bundle Pack", revenue: 2950, orders: 15, growth: 22.1 },
-      { name: "Basic Accessory Set", revenue: 1890, orders: 63, growth: -2.3 },
-      { name: "Limited Edition Item", revenue: 1650, orders: 11, growth: 45.6 },
-    ],
-  };
-};
+// Zero data for when backend has no data or store is empty
+const getZeroData = (period: string): AnalyticsData => ({
+  period,
+  metrics: {
+    totalRevenue: 0,
+    revenueChange: 0,
+    totalOrders: 0,
+    ordersChange: 0,
+    aov: 0,
+    aovChange: 0,
+    ltv: 0,
+    ltvChange: 0,
+    conversionRate: 0,
+    conversionChange: 0,
+    repeatCustomerRate: 0,
+    repeatChange: 0,
+  },
+  revenueByDay: [],
+  topPerformers: [],
+});
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -95,7 +63,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const period = url.searchParams.get("period") || "7d";
 
-  const data: AnalyticsData = generateMockData(period);
+  const data: AnalyticsData = getZeroData(period);
 
   try {
     const api = await createApiClient(accessToken, shopDomain);
@@ -105,12 +73,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopId = await resolveShopId(api, shopDomain, accessToken);
 
     if (!shopId) {
-      // Shop resolution failed - use mock data
-      data.error = "Using demo data - shop not configured";
+      data.error = "Could not register shop with backend. Data sync may be pending.";
       return data;
     }
 
-    // Try to get real data using shop UUID
+    // Get real data using shop UUID
     const [statsResult, chartResult] = await Promise.allSettled([
       api.getDashboardStats(shopId),
       api.getRevenueChart(shopId, days),
@@ -118,31 +85,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     if (statsResult.status === "fulfilled") {
       const stats = statsResult.value;
-      // Map backend field names to analytics metrics
-      const aov = stats.yesterdayAov ?? data.metrics.aov;
-      const aovChange = stats.aovDelta ?? data.metrics.aovChange;
+      const aov = stats.yesterdayAov ?? 0;
+      const aovChange = stats.aovDelta ?? 0;
       data.metrics = {
-        totalRevenue: stats.yesterdayRevenue ?? data.metrics.totalRevenue,
-        revenueChange: stats.revenueDelta ?? data.metrics.revenueChange,
-        totalOrders: stats.yesterdayOrders ?? data.metrics.totalOrders,
-        ordersChange: stats.ordersDelta ?? data.metrics.ordersChange,
+        totalRevenue: stats.yesterdayRevenue ?? 0,
+        revenueChange: stats.revenueDelta ?? 0,
+        totalOrders: stats.yesterdayOrders ?? 0,
+        ordersChange: stats.ordersDelta ?? 0,
         aov,
         aovChange,
-        ltv: aov * 2.2, // Estimated LTV
+        ltv: aov * 2.2,
         ltvChange: aovChange * 1.5,
-        conversionRate: data.metrics.conversionRate, // Not available from backend yet
-        conversionChange: data.metrics.conversionChange,
-        repeatCustomerRate: 24.5, // Mock - requires additional API
-        repeatChange: 3.2,
+        conversionRate: 0,
+        conversionChange: 0,
+        repeatCustomerRate: 0,
+        repeatChange: 0,
       };
     }
 
     if (chartResult.status === "fulfilled") {
-      data.revenueByDay = chartResult.value.data || data.revenueByDay;
+      data.revenueByDay = chartResult.value.data || [];
     }
   } catch (error) {
     console.error("Analytics loader error:", error);
-    data.error = "Using demo data - backend unavailable";
+    data.error = "Backend unavailable";
   }
 
   return data;

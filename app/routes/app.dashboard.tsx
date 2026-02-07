@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import type { LoaderFunctionArgs, HeadersFunction } from "react-router";
 import { useLoaderData } from "react-router";
-import { Layout, InlineGrid, Banner } from "@shopify/polaris";
+import { Layout, InlineGrid, Banner, Card, Text, BlockStack } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { boundary } from "@shopify/shopify-app-react-router/server";
 import { StatsCard, RevenueChart, InsightsList, SafePage } from "../components";
@@ -14,61 +14,8 @@ interface LoaderData {
   insights: Insight[];
   error?: string;
   shopId: string;
-  usingMockData?: boolean;
+  backendDown?: boolean;
 }
-
-// Mock data fallback when backend unavailable
-const MOCK_STATS: DashboardStats = {
-  yesterdayRevenue: 1247.50,
-  weekAvgRevenue: 1112.30,
-  yesterdayOrders: 8,
-  weekAvgOrders: 7,
-  yesterdayAov: 155.94,
-  weekAvgAov: 158.90,
-  revenueDelta: 12.1,
-  ordersDelta: 14.3,
-  aovDelta: -1.9,
-};
-
-// Use static dates to prevent hydration mismatch (Date.now() differs server vs client)
-const MOCK_CHART_DATA: RevenueChartData = {
-  data: [
-    { date: "2025-01-14T00:00:00.000Z", revenue: 2850, orders: 18 },
-    { date: "2025-01-15T00:00:00.000Z", revenue: 3420, orders: 22 },
-    { date: "2025-01-16T00:00:00.000Z", revenue: 2980, orders: 19 },
-    { date: "2025-01-17T00:00:00.000Z", revenue: 4150, orders: 26 },
-    { date: "2025-01-18T00:00:00.000Z", revenue: 3680, orders: 23 },
-    { date: "2025-01-19T00:00:00.000Z", revenue: 3890, orders: 25 },
-    { date: "2025-01-20T00:00:00.000Z", revenue: 3610, orders: 23 },
-  ],
-  totalRevenue: 24580,
-  totalOrders: 156,
-};
-
-// Use static dates to prevent hydration mismatch
-const MOCK_INSIGHTS: Insight[] = [
-  {
-    id: "mock-1",
-    shopId: "demo",
-    type: "checkout_dropoff",
-    severity: "high",
-    title: "Cart Abandonment Alert",
-    actionSummary: "Add a 10% discount popup for users about to leave checkout.",
-    expectedUplift: "+8% conversion",
-    confidence: 0.85,
-    createdAt: "2025-01-20T00:00:00.000Z",
-  },
-  {
-    id: "mock-2",
-    shopId: "demo",
-    type: "inventory_alert",
-    severity: "medium",
-    title: "Low Stock Warning",
-    actionSummary: "Review inventory levels and reorder top sellers - 3 products running low.",
-    confidence: 0.92,
-    createdAt: "2025-01-20T00:00:00.000Z",
-  },
-];
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -76,13 +23,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shopDomain = session.shop;
   const accessToken = session.accessToken || "";
 
-  // Default response structure with mock data as fallback
   const data: LoaderData = {
     stats: null,
     revenueChart: null,
     insights: [],
     shopId: shopDomain,
-    usingMockData: false,
+    backendDown: false,
   };
 
   try {
@@ -92,56 +38,39 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const shopId = await resolveShopId(api, shopDomain, accessToken);
 
     if (!shopId) {
-      // Fall back to mock data if shop resolution fails
-      data.usingMockData = true;
+      data.error = "Could not register shop with backend. Data sync may be pending.";
+      return data;
     }
 
     // Fetch dashboard data using the shop UUID (not domain)
-    if (shopId) {
-      const [statsResult, chartResult, insightsResult] = await Promise.allSettled([
-        api.getDashboardStats(shopId),
-        api.getRevenueChart(shopId, 7),
-        api.getInsights(shopId, { pageSize: 5 }),
-      ]);
+    const [statsResult, chartResult, insightsResult] = await Promise.allSettled([
+      api.getDashboardStats(shopId),
+      api.getRevenueChart(shopId, 7),
+      api.getInsights(shopId, { pageSize: 5 }),
+    ]);
 
-      if (statsResult.status === "fulfilled") {
-        data.stats = statsResult.value;
-      }
+    if (statsResult.status === "fulfilled") {
+      data.stats = statsResult.value;
+    }
 
-      if (chartResult.status === "fulfilled") {
-        data.revenueChart = chartResult.value;
-      }
+    if (chartResult.status === "fulfilled") {
+      data.revenueChart = chartResult.value;
+    }
 
-      if (insightsResult.status === "fulfilled") {
-        data.insights = insightsResult.value.items;
-      }
+    if (insightsResult.status === "fulfilled") {
+      data.insights = insightsResult.value.items;
     }
   } catch (error) {
     console.error("Dashboard loader error:", error);
-    // Use mock data as fallback instead of showing error
-    data.usingMockData = true;
-  }
-
-  // Apply mock data fallback only if backend was truly unreachable
-  if (!data.stats) {
-    data.stats = MOCK_STATS;
-    data.usingMockData = true;
-  }
-  if (!data.revenueChart) {
-    data.revenueChart = MOCK_CHART_DATA;
-    data.usingMockData = true;
-  }
-  if (data.insights.length === 0) {
-    data.insights = MOCK_INSIGHTS;
-    // Don't flag as mock just because insights are empty -
-    // a new store with no synced data legitimately has 0 insights
+    data.backendDown = true;
+    data.error = "Backend unavailable — showing cached or empty data";
   }
 
   return data;
 };
 
 export default function Dashboard() {
-  const { stats, revenueChart, insights: initialInsights, error, usingMockData, shopId } =
+  const { stats, revenueChart, insights: initialInsights, error, backendDown, shopId } =
     useLoaderData<LoaderData>();
 
   const [insights, setInsights] = useState<Insight[]>(initialInsights);
@@ -150,11 +79,10 @@ export default function Dashboard() {
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
-    // Show banner after hydration to prevent SSR/client mismatch
-    if (usingMockData || error) {
+    if (error || backendDown) {
       setShowBanner(true);
     }
-  }, [usingMockData, error]);
+  }, [error, backendDown]);
 
   const handleDismissInsight = useCallback(
     async (insightId: string) => {
@@ -177,24 +105,25 @@ export default function Dashboard() {
     []
   );
 
-  // With fallback mock data, we always have data to show
   const statsLoading = false;
   const chartLoading = false;
   const insightsLoading = false;
 
+  // Use real data (which may be zeros for an empty store)
+  const displayStats = stats;
+  const displayChart = revenueChart;
+
   return (
     <SafePage title="Dashboard" subtitle="AI-powered insights for your store">
       <Layout>
-        {/* Status Banner - rendered after hydration to prevent mismatch */}
+        {/* Status Banner - only for actual errors */}
         {showBanner && (
           <Layout.Section>
             <Banner
-              tone={error ? "critical" : "warning"}
+              tone={backendDown ? "critical" : "warning"}
               onDismiss={() => setShowBanner(false)}
             >
-              {error
-                ? `Error loading data: ${error}`
-                : `Showing demo data - connect backend for live data from ${shopId}`}
+              {error || "Loading data..."}
             </Banner>
           </Layout.Section>
         )}
@@ -204,27 +133,27 @@ export default function Dashboard() {
           <InlineGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="400">
             <StatsCard
               title="Yesterday Revenue"
-              value={stats?.yesterdayRevenue ?? 0}
+              value={displayStats?.yesterdayRevenue ?? 0}
               prefix="$"
-              comparison={stats?.revenueDelta ?? 0}
+              comparison={displayStats?.revenueDelta ?? 0}
               loading={statsLoading}
             />
             <StatsCard
               title="Yesterday Orders"
-              value={stats?.yesterdayOrders ?? 0}
-              comparison={stats?.ordersDelta ?? 0}
+              value={displayStats?.yesterdayOrders ?? 0}
+              comparison={displayStats?.ordersDelta ?? 0}
               loading={statsLoading}
             />
             <StatsCard
               title="Avg Order Value"
-              value={stats?.yesterdayAov ?? 0}
+              value={displayStats?.yesterdayAov ?? 0}
               prefix="$"
-              comparison={stats?.aovDelta ?? 0}
+              comparison={displayStats?.aovDelta ?? 0}
               loading={statsLoading}
             />
             <StatsCard
               title="7-Day Avg Revenue"
-              value={stats?.weekAvgRevenue ?? 0}
+              value={displayStats?.weekAvgRevenue ?? 0}
               prefix="$"
               loading={statsLoading}
             />
@@ -233,24 +162,46 @@ export default function Dashboard() {
 
         {/* Chart Section */}
         <Layout.Section>
-          <RevenueChart
-            data={revenueChart?.data}
-            totalRevenue={revenueChart?.totalRevenue}
-            totalOrders={revenueChart?.totalOrders}
-            loading={chartLoading}
-            error={!!error}
-          />
+          {displayChart && displayChart.data && displayChart.data.length > 0 ? (
+            <RevenueChart
+              data={displayChart.data}
+              totalRevenue={displayChart.totalRevenue}
+              totalOrders={displayChart.totalOrders}
+              loading={chartLoading}
+              error={!!backendDown}
+            />
+          ) : (
+            <Card>
+              <BlockStack gap="200">
+                <Text as="h2" variant="headingMd">Revenue Chart</Text>
+                <Text as="p" tone="subdued">
+                  No revenue data yet. Data will appear here after your first orders are synced.
+                </Text>
+              </BlockStack>
+            </Card>
+          )}
         </Layout.Section>
 
         {/* Insights Section */}
         <Layout.Section>
-          <InsightsList
-            insights={insights}
-            loading={insightsLoading}
-            error={!!error}
-            onDismiss={handleDismissInsight}
-            dismissingId={dismissingId}
-          />
+          {insights.length > 0 ? (
+            <InsightsList
+              insights={insights}
+              loading={insightsLoading}
+              error={!!backendDown}
+              onDismiss={handleDismissInsight}
+              dismissingId={dismissingId}
+            />
+          ) : (
+            <Card>
+              <BlockStack gap="200">
+                <Text as="h2" variant="headingMd">AI Insights</Text>
+                <Text as="p" tone="subdued">
+                  No insights yet. Insights will be generated after your store data is synced.
+                </Text>
+              </BlockStack>
+            </Card>
+          )}
         </Layout.Section>
       </Layout>
     </SafePage>
